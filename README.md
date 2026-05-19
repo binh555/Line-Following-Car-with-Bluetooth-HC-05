@@ -40,8 +40,8 @@ Xe dò line tự động dùng **STM32 Nucleo F401RE**, điều khiển không d
 | Motor | DC Servo GA12 N20, 12 V, tỉ số truyền 1:150 |
 | Bánh xe | Bánh cao su 43 mm đường kính |
 | Encoder | Hall sensor tích hợp trong GA12 N20, 7 xung/kênh/vòng motor |
-| Motor driver | TB6612FNG (VM ≤ 15 V, Iout ≤ 1.2 A liên tục) |
-| Cảm biến line | 5 cảm biến hồng ngoại (active LOW khi gặp line đen) |
+| Motor driver | TB6612FNG |
+| Cảm biến line | Cảm biến hồng ngoại 5 mắt TCRT5000 |
 | Bluetooth | HC-05 (baudrate 9600, chế độ Slave) |
 | Nguồn | Pin 12 V DC |
 
