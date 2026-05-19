@@ -1,97 +1,93 @@
 # 🚗 STM32 Line Follower Robot
 
-Xe dò line tự động dùng STM32 Nucleo F401RE, điều khiển không dây qua HC-05 Bluetooth, đọc tốc độ bánh xe bằng encoder Hall, và theo dõi đường bằng 5 cảm biến hồng ngoại. Thuật toán điều khiển sử dụng bộ điều khiển PD (Proportional-Derivative).
+An automatic line-following car using the STM32 Nucleo F401RE, wireless control via HC-05 Bluetooth, wheel speed measurement with Hall encoders, and line tracking with 5 infrared sensors. The control algorithm uses a PD (Proportional-Derivative) controller.
 
-<!-- ảnh chụp xe -->
+<!-- car photo -->
 <img width="1920" height="2560" alt="xe2" src="https://github.com/user-attachments/assets/cd0d2844-94d0-4f89-8171-23c87f3ed8c6" />
 <img width="1920" height="2560" alt="xe1" src="https://github.com/user-attachments/assets/f10fdf91-c032-4efe-802e-c00e83b104ef" />
-<!-- clip xe chạy dò line -->
 
-https://github.com/user-attachments/assets/6d994322-eb4f-472c-b479-9fedd5353642
+---
 
+## Table of Contents
 
-***
+- [Features](#features)
+- [Hardware](#hardware)
+- [Wiring Diagram](#wiring-diagram)
+- [Software Configuration](#software-configuration)
+- [Control Algorithm](#control-algorithm)
+- [Bluetooth Commands](#bluetooth-commands)
+- [Technical Notes](#technical-notes)
 
-## Mục lục
+---
 
-- [Tính năng](#tính-năng)
-- [Phần cứng](#phần-cứng)
-- [Sơ đồ kết nối](#sơ-đồ-kết-nối)
-- [Cấu hình phần mềm](#cấu-hình-phần-mềm)
-- [Thuật toán điều khiển](#thuật-toán-điều-khiển)
-- [Lệnh Bluetooth](#lệnh-bluetooth)
-- [Ghi chú kỹ thuật](#ghi-chú-kỹ-thuật)
+## Features
 
-***
+- **AUTO mode** — the car follows the line automatically and adjusts the speed of both wheels using a PD controller
+- **MANUAL mode** — manual control via Bluetooth (W/S/A/D), supports key auto-repeat from terminal software
+- **STOP mode** — complete stop, disables the driver STBY pin
+- **Auto stop on all-black** — detects the finish line after 40 consecutive stable cycles
+- **Encoder report every 1 second** — prints LeftPPS / RightPPS and the status of 5 sensors through both UART2 (USB debug) and HC-05 (Bluetooth)
+- **UART ring buffer without DMA** — Bluetooth RX/TX is fully interrupt-driven and non-blocking
+- **Mechanical bias compensation** — `LEFT_PWM_BIAS` / `RIGHT_PWM_BIAS` compensate for real speed differences between the two wheels
 
-## Tính năng
+---
 
-- **Chế độ AUTO** — xe tự dò line, điều chỉnh tốc độ hai bánh theo thuật toán PD
-- **Chế độ MANUAL** — điều khiển thủ công qua Bluetooth (W/S/A/D), hỗ trợ giữ phím auto-repeat từ terminal
-- **Chế độ STOP** — dừng hoàn toàn, tắt STBY driver
-- **Dừng tự động khi all-black** — phát hiện vạch kết thúc đường đua (40 chu kỳ ổn định liên tiếp)
-- **Báo cáo encoder mỗi 1 giây** — in LeftPPS / RightPPS và trạng thái 5 cảm biến qua cả UART2 (USB debug) và HC-05 (Bluetooth)
-- **Ring buffer UART không dùng DMA** — nhận/gửi Bluetooth hoàn toàn bằng interrupt, không blocking
-- **Bù bias cơ học** — `LEFT_PWM_BIAS` / `RIGHT_PWM_BIAS` bù chênh lệch tốc độ thực tế hai bánh
+## Hardware
 
-***
-
-## Phần cứng
-
-| Linh kiện | Model / Thông số |
+| Component | Model / Specification |
 |---|---|
-| Vi điều khiển | STM32 Nucleo F401RE (STM32F401RET6, 84 MHz) |
-| Motor | DC Servo GA12 N20, 12 V, tỉ số truyền 1:150 |
-| Bánh xe | Bánh cao su 43 mm đường kính |
-| Encoder | Hall sensor tích hợp trong GA12 N20, 7 xung/kênh/vòng motor |
-| Motor driver | TB6612FNG (VM ≤ 15 V, Iout ≤ 1.2 A liên tục) |
-| Cảm biến line | 5 cảm biến hồng ngoại (active LOW khi gặp line đen) |
-| Bluetooth | HC-05 (baudrate 9600, chế độ Slave) |
-| Nguồn | Pin 12 V DC |
+| Microcontroller | STM32 Nucleo F401RE (STM32F401RET6, 84 MHz) |
+| Motor | DC Servo GA12 N20, 12 V, gear ratio 1:150 |
+| Wheels | 43 mm rubber wheels |
+| Encoder | Hall sensor integrated in GA12 N20, 7 pulses/channel/motor revolution |
+| Motor driver | TB6612FNG (VM ≤ 15 V, Iout ≤ 1.2 A continuous) |
+| Line sensor | 5 infrared sensors (active LOW on black line) |
+| Bluetooth | HC-05 (baud rate 9600, Slave mode) |
+| Power supply | 12 V DC battery |
 
-**Thông số encoder chi tiết:**
-- 7 xung / kênh / vòng trục motor (trước hộp giảm tốc)
-- Tỉ số 1:150 → 1.050 xung / vòng bánh xe (mỗi kênh)
-- Code hiện dùng 1 kênh rising edge → PPS = vòng/giây × 1.050
-- Nguồn encoder: 3.3 V hoặc 5 V — **tuyệt đối không cấp 12 V**
+**Detailed encoder specifications:**
+- 7 pulses / channel / motor shaft revolution (before gearbox)
+- Gear ratio 1:150 → 1,050 pulses / wheel revolution (per channel)
+- The current code uses 1 channel with rising edge detection → PPS = revolutions/second × 1,050
+- Encoder supply: 3.3 V or 5 V — **never use 12 V**
 
-***
+---
 
-## Sơ đồ kết nối
+## Wiring Diagram
 
 ### TB6612FNG ↔ STM32
 
-| TB6612 | STM32 Pin | Mô tả |
+| TB6612 | STM32 Pin | Description |
 |---|---|---|
-| STBY | PA6 | Kích hoạt driver (HIGH = ON) |
-| AIN1 | PB1 | Hướng motor A (bánh trái) |
-| AIN2 | PA8 | Hướng motor A (bánh trái) |
-| PWMA | PB10 (TIM2_CH3) | PWM motor A |
-| BIN1 | PC7 | Hướng motor B (bánh phải) |
-| BIN2 | PB6 | Hướng motor B (bánh phải) |
-| PWMB | PA7 (TIM3_CH2) | PWM motor B |
-| VM | 12 V | Nguồn motor |
-| VCC | 3.3 V | Nguồn logic |
-| GND | GND | Mass chung |
+| STBY | PA6 | Driver enable (HIGH = ON) |
+| AIN1 | PB1 | Motor A direction (left wheel) |
+| AIN2 | PA8 | Motor A direction (left wheel) |
+| PWMA | PB10 (TIM2_CH3) | Motor A PWM |
+| BIN1 | PC7 | Motor B direction (right wheel) |
+| BIN2 | PB6 | Motor B direction (right wheel) |
+| PWMB | PA7 (TIM3_CH2) | Motor B PWM |
+| VM | 12 V | Motor power |
+| VCC | 3.3 V | Logic power |
+| GND | GND | Common ground |
 
-### Cảm biến hồng ngoại (5 mắt)
+### Infrared sensors (5 sensors)
 
-| Cảm biến | STM32 Pin | Vị trí vật lý |
+| Sensor | STM32 Pin | Physical position |
 |---|---|---|
-| S0 (ngoài trái) | PA0 | Trái nhất |
+| S0 (far left) | PA0 | Leftmost |
 | S1 | PA1 | |
-| S2 (giữa) | PA4 | Trung tâm |
+| S2 (center) | PA4 | Center |
 | S3 | PB0 | |
-| S4 (ngoài phải) | PC1 | Phải nhất |
+| S4 (far right) | PC1 | Rightmost |
 
-> Logic: `0` = không có line, `1` = phát hiện line đen (active LOW, cảm biến kéo xuống GND khi gặp đen)
+> Logic: `0` = no line, `1` = black line detected (active LOW, sensor pulls down to GND on black)
 
 ### Encoder
 
-| Tín hiệu | STM32 Pin | Ngắt |
+| Signal | STM32 Pin | Interrupt |
 |---|---|---|
-| Encoder trái (kênh A) | PA15 | EXTI15 (rising edge) |
-| Encoder phải (kênh A) | PB5 | EXTI9_5 (rising edge) |
+| Left encoder (channel A) | PA15 | EXTI15 (rising edge) |
+| Right encoder (channel A) | PB5 | EXTI9_5 (rising edge) |
 
 ### HC-05 Bluetooth
 
@@ -104,65 +100,65 @@ https://github.com/user-attachments/assets/6d994322-eb4f-472c-b479-9fedd5353642
 
 ### UART2 Debug (USB → MobaXterm)
 
-| Tín hiệu | STM32 Pin |
+| Signal | STM32 Pin |
 |---|---|
 | TX | PA2 (USART2_TX) |
 | RX | PA3 (USART2_RX) |
 
-***
+---
 
-## Cấu hình phần mềm
+## Software Configuration
 
 ### Clock
 
-```
+```txt
 HSI 16 MHz → PLL → SYSCLK = 84 MHz
-APB1 = 42 MHz  (TIM2, TIM3 timer clock = 84 MHz do nhân đôi)
+APB1 = 42 MHz  (TIM2, TIM3 timer clock = 84 MHz due to timer x2 multiplier)
 APB2 = 84 MHz  (USART1)
 ```
 
 ### PWM
 
-| Tham số | Giá trị |
+| Parameter | Value |
 |---|---|
-| Timer | TIM2 (bánh trái, CH3 - PB10) \| TIM3 (bánh phải, CH2 - PA7) |
-| Prescaler | 3 → clock vào timer = 84 MHz / 4 = 21 MHz |
+| Timer | TIM2 (left wheel, CH3 - PB10) \| TIM3 (right wheel, CH2 - PA7) |
+| Prescaler | 3 → timer input clock = 84 MHz / 4 = 21 MHz |
 | Period | 1499 |
 | PWM frequency | 21 MHz / 1500 ≈ 14 kHz |
-| PWM_MAX (tick) | 1499 → duty 100% = 12 V |
-| PWM_MIN_RUN | 250 → duty ~16.7% (ngưỡng motor bắt đầu quay) |
+| PWM_MAX (tick) | 1499 → 100% duty = 12 V |
+| PWM_MIN_RUN | 250 → duty ~16.7% (minimum threshold for motor startup) |
 
 ### UART
 
-| UART | Dùng cho | Baudrate | Chế độ |
+| UART | Used for | Baud rate | Mode |
 |---|---|---|---|
 | USART1 | HC-05 Bluetooth | 9600 | Interrupt TX + Interrupt RX |
-| USART2 | Debug qua USB | 115200 | Blocking TX |
+| USART2 | USB debug | 115200 | Blocking TX |
 
-***
+---
 
-## Thuật toán điều khiển
+## Control Algorithm
 
-### Tính vị trí line (weighted average)
+### Line position calculation (weighted average)
 
-5 cảm biến được đánh trọng số vị trí 0, 1000, 2000, 3000, 4000:
+The 5 sensors are assigned position weights of 0, 1000, 2000, 3000, and 4000:
 
-```
+```txt
 position = Σ(i × 1000 × sensor[i]) / Σ(sensor[i])
 ```
 
-Vị trí trung tâm = 2000. Nếu không có cảm biến nào active → chạy chế độ tìm kiếm (`searchLine`).
+The center position is 2000. If no sensor is active, the system switches to line-search mode (`searchLine`).
 
-### Lọc nhiễu
+### Noise filtering
 
-```
+```txt
 filteredPosition = 0.45 × filteredPosition + 0.55 × rawPosition
 ```
 
-### Bộ điều khiển PD
+### PD controller
 
 ```c
-error      = (filteredPosition - 2000) / 1000        // đơn vị hoá -2..+2
+error      = (filteredPosition - 2000) / 1000        // normalized unit: -2..+2
 dError     = error - lastError
 correction = KP × error + KD × dError
 correction = clamp(correction, -MAX_CORRECTION, +MAX_CORRECTION)
@@ -171,89 +167,89 @@ leftSpeed  = BASE_SPEED + correction
 rightSpeed = BASE_SPEED - correction
 ```
 
-Cả hai bánh đều được clamp trong `[MIN_AUTO_SPEED, MAX_SPEED]`.
+Both wheels are clamped within `[MIN_AUTO_SPEED, MAX_SPEED]`.
 
-### Xử lý góc cua gắt
+### Sharp turn handling
 
-Nếu `filteredPosition ≤ 500` hoặc `≥ 3500` (line gần sát mép ngoài):
+If `filteredPosition ≤ 500` or `≥ 3500` (line is near the outer edge):
 
-- `filteredPosition ≤ 500` → left = 30%, right = MAX_SPEED *(rẽ trái gắt)*
-- `filteredPosition ≥ 3500` → left = MAX_SPEED, right = 30% *(rẽ phải gắt)*
+- `filteredPosition ≤ 500` → left = 30%, right = MAX_SPEED *(sharp left turn)*
+- `filteredPosition ≥ 3500` → left = MAX_SPEED, right = 30% *(sharp right turn)*
 
-### Tìm kiếm line khi mất
+### Line search when lost
 
-- `lastSeenSide < 0` → quay trái (left = -SEARCH_REVERSE, right = +SEARCH_FORWARD)
-- `lastSeenSide > 0` → quay phải (left = +SEARCH_FORWARD, right = -SEARCH_REVERSE)
-- không rõ → tiến thẳng chậm (30%)
+- `lastSeenSide < 0` → turn left (left = -SEARCH_REVERSE, right = +SEARCH_FORWARD)
+- `lastSeenSide > 0` → turn right (left = +SEARCH_FORWARD, right = -SEARCH_REVERSE)
+- unknown → move slowly forward (30%)
 
-### Dừng khi all-black (vạch đích)
+### Stop on all-black (finish line)
 
-Nếu cả 5 cảm biến đều detect line liên tục trong **40 chu kỳ điều khiển** (40 × 3 ms = 120 ms):
-1. Chuyển sang `CAR_MODE_STOP`
-2. Tắt STBY
-3. In thông báo qua cả UART2 và Bluetooth
+If all 5 sensors continuously detect the line for **40 control cycles** (40 × 3 ms = 120 ms):
+1. Switch to `CAR_MODE_STOP`
+2. Disable STBY
+3. Print a message through both UART2 and Bluetooth
 
-***
+---
 
-## Lệnh Bluetooth
+## Bluetooth Commands
 
-Kết nối HC-05 bằng MobaXterm hoặc bất kỳ serial terminal nào (baudrate 9600).
+Connect to HC-05 using MobaXterm or any serial terminal (baud rate 9600).
 
-### Lệnh chế độ
+### Mode commands
 
-| Lệnh | Chức năng |
+| Command | Function |
 |---|---|
-| `U` | Chuyển sang chế độ AUTO — xe tự dò line |
-| `M` | Chuyển sang chế độ MANUAL — điều khiển thủ công |
-| `X` | STOP — dừng xe, tắt driver |
-| `H` | In HELP — danh sách lệnh |
-| `T` | In STATUS — chế độ hiện tại, vị trí, PWM, cảm biến |
+| `U` | Switch to AUTO mode — line following |
+| `M` | Switch to MANUAL mode — manual control |
+| `X` | STOP — stop the car and disable the driver |
+| `H` | Print HELP — list of commands |
+| `T` | Print STATUS — current mode, position, PWM, sensors |
 
-### Lệnh MANUAL *(chỉ hoạt động khi đang ở chế độ MANUAL)*
+### MANUAL commands *(only active in MANUAL mode)*
 
-| Lệnh | Chức năng | Timeout tự dừng |
+| Command | Function | Auto-stop timeout |
 |---|---|---|
-| `W` | Tiến | 250 ms sau ký tự cuối |
-| `S` | Lùi | 500 ms sau ký tự cuối |
-| `A` | Rẽ trái | 120 ms sau ký tự cuối |
-| `D` | Rẽ phải | 120 ms sau ký tự cuối |
+| `W` | Forward | 250 ms after the last character |
+| `S` | Backward | 500 ms after the last character |
+| `A` | Turn left | 120 ms after the last character |
+| `D` | Turn right | 120 ms after the last character |
 
-> **Lưu ý timeout:** Terminal không gửi tín hiệu khi nhả phím. Bấm nhanh = xe di chuyển một xung ngắn rồi tự dừng. Giữ phím = terminal auto-repeat ký tự → xe chạy liên tục đến khi nhả.
+> **Timeout note:** Terminal software does not send a signal when the key is released. A quick press = the car moves in one short pulse and then stops automatically. Holding the key = the terminal auto-repeats the character, so the car keeps moving until the key is released.
 
-Lệnh chấp nhận cả chữ thường và chữ hoa (`w` = `W`).
+Commands are case-insensitive (`w` = `W`).
 
-***
+---
 
-## Ghi chú kỹ thuật
+## Technical Notes
 
-### Giới hạn tốc độ cơ học (motor 1:150)
+### Mechanical speed limit (1:150 motor)
 
-Motor GA12 N20 tỉ số 1:150 tại 12 V không tải đạt khoảng 100–150 RPM sau giảm tốc. Với bánh 43 mm:
+The GA12 N20 motor with a 1:150 gear ratio at 12 V no-load typically reaches about 100–150 RPM after the gearbox. With 43 mm wheels:
 
+```txt
+Theoretical maximum speed ≈ π × 0.043 m × 150 RPM / 60 ≈ 0.34 m/s
 ```
-Tốc độ lý thuyết tối đa ≈ π × 0.043 m × 150 RPM / 60 ≈ 0.34 m/s
-```
 
-Đây là trần vật lý — nếu tốc độ yêu cầu cao hơn, cần thay motor tỉ số truyền nhỏ hơn (1:50 hoặc 1:30).
+This is the physical upper limit. If higher speed is needed, use a motor with a smaller gear ratio such as 1:50 or 1:30.
 
-### Ring buffer Bluetooth
+### Bluetooth ring buffer
 
-TX và RX Bluetooth đều dùng ring buffer interrupt-driven:
-- RX: `BT_RX_BUF_SIZE = 64` byte — đủ cho lệnh 1 ký tự
-- TX: `BT_TX_BUF_SIZE = 256` byte — đủ cho 1 dòng report đầy đủ
-- Không blocking — `main()` loop không bao giờ bị treo chờ UART
+Both Bluetooth TX and RX use interrupt-driven ring buffers:
+- RX: `BT_RX_BUF_SIZE = 64` bytes — enough for 1-character commands
+- TX: `BT_TX_BUF_SIZE = 256` bytes — enough for one full report line
+- Non-blocking — the `main()` loop never stalls waiting for UART
 
 ### Interrupt priority
 
-| Interrupt | Priority | Lý do |
+| Interrupt | Priority | Reason |
 |---|---|---|
-| USART1 (HC-05) | 0 (cao nhất) | Không mất byte Bluetooth |
-| EXTI15_10 (encoder trái) | 1 | Đếm xung chính xác |
-| EXTI9_5 (encoder phải) | 1 | Đếm xung chính xác |
+| USART1 (HC-05) | 0 (highest) | Prevent Bluetooth byte loss |
+| EXTI15_10 (left encoder) | 1 | Accurate pulse counting |
+| EXTI9_5 (right encoder) | 1 | Accurate pulse counting |
 
-### Lưu ý khi dùng MobaXterm / serial terminal
+### Notes when using MobaXterm / serial terminal
 
-Terminal không gửi byte riêng khi nhả phím — xe MANUAL dùng timeout để tự dừng. Nếu xe giật cục khi điều khiển, điều chỉnh các hằng số:
+The terminal does not send a separate byte when a key is released, so MANUAL mode uses timeout-based auto-stop. If the car feels jerky during manual control, adjust these constants:
 
 ```c
 #define MANUAL_FWD_RELEASE_TIMEOUT_MS   250U
@@ -261,11 +257,11 @@ Terminal không gửi byte riêng khi nhả phím — xe MANUAL dùng timeout đ
 #define MANUAL_TURN_RELEASE_TIMEOUT_MS  120U
 ```
 
-Tăng timeout → xe chạy lâu hơn mỗi lần bấm phím. Giảm timeout → xe dừng nhanh hơn sau khi nhả phím.
+Increase the timeout → the car moves longer after each key press.  
+Decrease the timeout → the car stops faster after key release.
 
-***
+---
 
 ## License
 
 MIT License — free to use, modify, and distribute.
-
