@@ -1,0 +1,7 @@
+../Core/Src/bluetooth.c:23:13:btTxPushByteNoIrq	24	static
+../Core/Src/bluetooth.c:30:13:btTxKickFromMain	24	static,ignoring_inline_asm
+../Core/Src/bluetooth.c:44:16:btRxPop	16	static
+../Core/Src/bluetooth.c:51:13:btPrint	16	static
+../Core/Src/bluetooth.c:56:6:btPrintHelp	8	static
+../Core/Src/bluetooth.c:61:6:bluetoothStartRx	8	static
+../Core/Src/bluetooth.c:65:6:bluetoothTask	16	static

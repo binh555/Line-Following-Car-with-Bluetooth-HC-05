@@ -1,0 +1,12 @@
+../Core/Src/motor.c:10:14:clamp_f32	24	static
+../Core/Src/motor.c:16:16:clamp_i16	16	static
+../Core/Src/motor.c:22:16:percentToSignedPwm	24	static
+../Core/Src/motor.c:32:13:setLeftMotorPwmSigned	16	static
+../Core/Src/motor.c:49:13:setRightMotorPwmSigned	16	static
+../Core/Src/motor.c:66:6:tb6612_standby	16	static
+../Core/Src/motor.c:67:6:stopMotor	8	static
+../Core/Src/motor.c:68:6:setMotorPercent	16	static
+../Core/Src/motor.c:69:6:manualForward	8	static
+../Core/Src/motor.c:70:6:manualBackward	8	static
+../Core/Src/motor.c:71:6:manualLeft	8	static
+../Core/Src/motor.c:72:6:manualRight	8	static
